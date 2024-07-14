@@ -6,10 +6,10 @@ public class MapGenerator {
     public int brickHeight;
 
     private Color[] rowColors = {
-            new Color(255, 255, 100), // Yellow-ish
             new Color(255, 100, 100), // Red-ish
             new Color(100, 100, 255), // Blue-ish
             new Color(100, 255, 100), // Green-ish
+            new Color(255, 255, 100), // Yellow-ish
             new Color(255, 100, 255)  // Purple-ish
     };
 
@@ -53,3 +53,4 @@ public class MapGenerator {
         return count;
     }
 }
+

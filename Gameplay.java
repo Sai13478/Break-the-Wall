@@ -6,77 +6,86 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.io.File;
 import java.io.IOException;
+import java.util.LinkedList;
+import java.util.Queue;
 
 public class Gameplay extends JPanel implements KeyListener, ActionListener {
     private boolean play = false;
     private int score = 0;
-    private int totalBricks = 21;
+    private int highScore = 0;
+    private int totalBricks = 52;
     private int level = 1;
     private int lives = 3;
     private Timer timer;
     private int delay = 8;
 
-    private int playerX = 310;
+    private int playerX = 300;
     private int ballposX = playerX + 40;
-    private int ballposY = 530;
+    private int ballposY = 520;
     private int ballXdir = -1;
     private int ballYdir = -2;
 
     private MapGenerator map;
     private Font cloisterBlackFont;
+    private Queue<Point> ballPath;
 
     public Gameplay() {
-        map = new MapGenerator(3, 7);
+        map = new MapGenerator(4, 13);
         addKeyListener(this);
         setFocusable(true);
         setFocusTraversalKeysEnabled(false);
         timer = new Timer(delay, this);
         timer.start();
         loadCloisterBlackFont();
+        ballPath = new LinkedList<>();
     }
 
     private void loadCloisterBlackFont() {
         try {
-            cloisterBlackFont = Font.createFont(Font.TRUETYPE_FONT, new File("CloisterBlack.ttf")).deriveFont(48f);
+            cloisterBlackFont = Font.createFont(Font.TRUETYPE_FONT, new File("CloisterBlack.ttf")).deriveFont(24f);
             GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
             ge.registerFont(cloisterBlackFont);
         } catch (IOException | FontFormatException e) {
-            cloisterBlackFont = new Font("Serif", Font.BOLD, 48);
+            cloisterBlackFont = new Font("Serif", Font.BOLD, 24);
         }
     }
 
     public void paint(Graphics g) {
         // Background
-        g.setColor(new Color(30, 30, 30));
-        g.fillRect(1, 1, 692, 592);
+        g.setColor(Color.BLACK);
+        g.fillRect(1, 1, 700, 600);
 
         // Background Text
-        g.setFont(cloisterBlackFont);
-        g.setColor(Color.WHITE);
-        g.drawString("Break the Wall !!", 150, 300);
-        g.drawString("Never Give Up", 150, 350);
+        //g.setFont(cloisterBlackFont);
+        //g.setColor(Color.WHITE);
+        //g.drawString("Break the Wall !!", 150, 300);
+        //g.drawString("Never Give Up", 150, 350);
 
         // Drawing map
         map.draw((Graphics2D) g);
 
         // Borders
         g.setColor(Color.YELLOW);
-        g.fillRect(0, 0, 3, 592);
-        g.fillRect(0, 0, 692, 3);
-        g.fillRect(691, 0, 3, 592);
+        g.fillRect(0, 0, 3, 600);
+        g.fillRect(0, 0, 700, 3);
+        g.fillRect(697, 0, 3, 600);
 
-        // Paddle with rounded corners
-        drawRoundedRect(g, playerX, 550, 100, 8, new Color(192, 192, 192));
+        // Paddle
+        draw3DRect(g, playerX, 550, 100, 8, new Color(192, 192, 192));
+
+        // Draw the ball path
+        g.setColor(Color.RED);
+        for (Point p : ballPath) {
+            g.fillOval(p.x, p.y, 10, 10);
+        }
 
         // Ball
         draw3DOval(g, ballposX, ballposY, 20, 20, Color.RED);
 
-        // Display Lives, Level, and Score at the top center
+        // Score, lives, level, and high score
         g.setColor(Color.WHITE);
-        g.setFont(new Font("Arial", Font.BOLD, 20));
-        String status = "Lives: " + lives + " | Level: " + level + " | Score: " + score;
-        int statusWidth = g.getFontMetrics().stringWidth(status);
-        g.drawString(status, (692 - statusWidth) / 2, 30);
+        g.setFont(new Font("Arial", Font.BOLD, 16));
+        g.drawString("Lives: " + lives + " | Level: " + level + " | Score: " + score + " | High Score: " + highScore, 150, 30);
 
         // Game Over
         if (lives <= 0) {
@@ -91,11 +100,11 @@ public class Gameplay extends JPanel implements KeyListener, ActionListener {
         Toolkit.getDefaultToolkit().sync();
     }
 
-    private void drawRoundedRect(Graphics g, int x, int y, int width, int height, Color color) {
+    private void draw3DRect(Graphics g, int x, int y, int width, int height, Color color) {
         g.setColor(color);
-        g.fillRoundRect(x, y, width, height, 10, 10);
+        g.fillRect(x, y, width, height);
         g.setColor(color.darker());
-        g.fillRoundRect(x + 2, y + 2, width - 2, height - 2, 10, 10);
+        g.fillRect(x + 2, y + 2, width - 2, height - 2);
     }
 
     private void draw3DOval(Graphics g, int x, int y, int width, int height, Color color) {
@@ -112,6 +121,12 @@ public class Gameplay extends JPanel implements KeyListener, ActionListener {
             ballposX += ballXdir;
             ballposY += ballYdir;
 
+            // Add ball position to the path and maintain a size limit
+            ballPath.add(new Point(ballposX, ballposY));
+            if (ballPath.size() > 10) { // Limit path size
+                ballPath.poll(); // Remove the oldest position
+            }
+
             // Ball and wall collision
             if (ballposX < 0) {
                 ballXdir = -ballXdir;
@@ -119,16 +134,17 @@ public class Gameplay extends JPanel implements KeyListener, ActionListener {
             if (ballposY < 0) {
                 ballYdir = -ballYdir;
             }
-            if (ballposX > 670) {
+            if (ballposX > 680) {
                 ballXdir = -ballXdir;
             }
 
-            // Early paddle collision detection
+            // Paddle collision detection
             if (ballposY + 20 >= 550 && ballposX + 20 >= playerX && ballposX <= playerX + 100) {
-                ballYdir = -ballYdir; // Bounce back
+                ballYdir = -ballYdir;
             }
 
             // Ball and brick collision
+            A:
             for (int i = 0; i < map.map.length; i++) {
                 for (int j = 0; j < map.map[0].length; j++) {
                     if (map.map[i][j] > 0) {
@@ -144,12 +160,17 @@ public class Gameplay extends JPanel implements KeyListener, ActionListener {
                             map.setBrickValue(0, i, j);
                             score += 5;
 
+                            if (score > highScore) {
+                                highScore = score;
+                            }
+
                             // Ball hits left or right of the brick
                             if (ballposX + 19 <= brickRect.x || ballposX + 1 >= brickRect.x + brickRect.width) {
                                 ballXdir = -ballXdir;
                             } else {
                                 ballYdir = -ballYdir;
                             }
+                            break A;
                         }
                     }
                 }
@@ -169,7 +190,7 @@ public class Gameplay extends JPanel implements KeyListener, ActionListener {
             if (map.getTotalBricks() == 0) {
                 level++;
                 totalBricks += 5;
-                map = new MapGenerator(3 + level, 7 + level); // recreate the map with the new level
+                map = new MapGenerator(4, 13);
                 resetBall();
             }
         }
@@ -179,10 +200,11 @@ public class Gameplay extends JPanel implements KeyListener, ActionListener {
 
     public void resetBall() {
         ballposX = playerX + 40;
-        ballposY = 530;
+        ballposY = 520;
         ballXdir = -1;
         ballYdir = -2;
         play = false;
+        ballPath.clear();
     }
 
     @Override
@@ -207,17 +229,15 @@ public class Gameplay extends JPanel implements KeyListener, ActionListener {
                 moveLeft();
             }
         }
-        // Start the game when any key is pressed
         if (!play && lives > 0) {
             play = true;
         }
-        // Reset the game if Enter is pressed after game over
         if (e.getKeyCode() == KeyEvent.VK_ENTER && lives <= 0) {
             lives = 3;
             level = 1;
             score = 0;
-            totalBricks = 21;
-            map = new MapGenerator(3, 7);
+            totalBricks = 52;
+            map = new MapGenerator(4, 13);
             resetBall();
             repaint();
         }
